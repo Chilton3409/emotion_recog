@@ -5,22 +5,33 @@ import dlib
 import numpy as np
 import os
 import logging
-from meta_ai_api import MetaAI
 
+from meta_ai_api import MetaAI
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class MetaEmotionRecogAI:
     def __init__(self, access_token):
         self.access_token = access_token
+        self.ai = MetaAI(access_token)
         self.detector = dlib.get_frontal_face_detector()
         self.predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
-        self.api = MetaAI(access_token)
+        self.feature_vectors = []
+        self.features_dict = {}
+        self.baseline_feature_dict = {
+        "pitch": {"mean": 0, "stddev": 0},
+        "yaw": {"mean": 0, "stddev": 0},
+        "roll": {"mean": 0, "stddev": 0},
+        "eye_to_eye_distance": {"mean": 0, "stddev": 0},
+        "eye_aspect_ratio": {"mean": 0, "stddev": 0},
+        "mouth_aspect_ratio": {"mean": 0, "stddev": 0},
+        "face_aspect_ratio": {"mean": 0, "stddev": 0},
+    }
     def get_meta_ai_insights(self, meta_ai_text):
         
         
         try:
-            response = self.api.prompt(message=meta_ai_text, new_conversation=False)
+            response = self.ai.prompt(message=meta_ai_text, new_conversation=False)
             
             return response['message']
         except Exception as e:
@@ -106,16 +117,7 @@ class MetaEmotionRecogAI:
     
     def calculate_nose_distance_ratio(self, nose_to_mouth_distance, face_height):
         pass
-    
-    def calculate_head_pose_yaw(self):
-        pass
-    
-    def calculate_head_pose_pitch(self):
-        pass
-    
-    def calculate_head_pose_roll(self):
-        pass
-    
+ 
 
     def calculate_head_pose(self, shape):
         try:
@@ -258,14 +260,27 @@ class MetaEmotionRecogAI:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = self.detector(gray)
 
-        feature_vectors = []
+        
 
         for face in faces:
             landmarks = self.predictor(gray, face)
             feature_vector = self.calculate_facial_features(landmarks)
-            feature_vectors.append(feature_vector)
+            self.feature_vectors.append(feature_vector)
 
-        return feature_vectors
+        return self.feature_vectors
+    def emotion_recognition(self, feature_vectors):
+        self.feature_dict = {
+            "pitch": feature_vectors[0][0],
+            "yaw": feature_vectors[0][1],
+            "roll": feature_vectors[0][2],
+            "eye_to_eye_distance": feature_vectors[0][3],
+            "eye_aspect_ratio": feature_vectors[0][4],
+            "mouth_aspect_ratio": feature_vectors[0][5],
+            "face_aspect_ratio": feature_vectors[0][6],
+        }
+        emotion_recog = self.get_meta_ai_insights(meta_ai_text=f"analyze these facial features for emotion recognition and analysis: {self.feature_dict}")
+        return emotion_recog
+        
 
 def main():
     access_token = os.environ.get("META_AI_TOKEN")
@@ -273,9 +288,11 @@ def main():
 
     image = cv2.imread("profile.jpg")
     feature_vectors = ai.analyze_image(image)
-    print(feature_vectors)
-    emotion_recog = ai.get_meta_ai_insights(meta_ai_text=f"analyze these facial features for emotion recogniton and analysis: {feature_vectors}")
+    print(ai.features_dict)
+   
+    emotion_recog = ai.emotion_recognition(feature_vectors)
     print(emotion_recog)
+    
     # Use feature vectors for emotion recognition
     # ...
 
